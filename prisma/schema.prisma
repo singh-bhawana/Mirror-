@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  scans     Scan[]
+}
+
+model Scan {
+  id           String   @id @default(uuid())
+  fileName     String
+  fileType     String
+  uploadedAt   DateTime @default(now())
+  mirrorScore  Float
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  findings     Finding[]
+}
+
+model Finding {
+  id          String   @id @default(uuid())
+  scanId      String
+  scan        Scan     @relation(fields: [scanId], references: [id])
+  category    String
+  severity    String
+  description String
+  location    String?
+} 

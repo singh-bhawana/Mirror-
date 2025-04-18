@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #9747FF;
+  --primary-dark: #7535CC;
+  --background: #000000;
+  --text: #FFFFFF;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.gradient-bg {
+  background: radial-gradient(circle at top left, var(--primary) 0%, transparent 50%),
+             radial-gradient(circle at top right, var(--primary) 0%, transparent 50%);
+  opacity: 0.2;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+}
+
+.btn-primary {
+  @apply bg-[#9747FF] hover:bg-[#7535CC] text-white font-semibold py-2 px-6 rounded-lg transition-all;
+}
+
+.btn-secondary {
+  @apply border border-[#9747FF] text-[#9747FF] hover:bg-[#9747FF] hover:text-white font-semibold py-2 px-6 rounded-lg transition-all;
+}
+
+.card {
+  @apply bg-black/50 backdrop-blur-sm border border-[#9747FF]/20 rounded-xl p-6;
+} 
