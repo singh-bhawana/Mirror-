@@ -1,4 +1,4 @@
-# Mirror V2 - Document Analysis Platform
+# Mirror - Document Analysis Platform
 
 A modern web application for analyzing documents and detecting potential security, privacy, and phishing issues.
 
