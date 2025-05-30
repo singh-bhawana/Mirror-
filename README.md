@@ -1,6 +1,7 @@
 # Mirror - Document Analysis Platform
 
 A modern web application for analyzing documents and detecting potential security, privacy, and phishing issues.
+presentation link - https://drive.google.com/file/d/15SNnh5KP8sfAfaGm6_DTI7D2wrVbt3hQ/view?usp=sharing
 
 ## Features
 
