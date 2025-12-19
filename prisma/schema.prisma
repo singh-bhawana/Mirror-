@@ -4,15 +4,16 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   email     String   @unique
+  name      String
   password  String
-  name      String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   scans     Scan[]
 }
 
@@ -22,8 +23,8 @@ model Scan {
   fileType     String
   uploadedAt   DateTime @default(now())
   mirrorScore  Float
-  userId       String
-  user         User     @relation(fields: [userId], references: [id])
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
   findings     Finding[]
 }
 
