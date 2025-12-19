@@ -123,7 +123,8 @@ export const securityThreats: ThreatPattern[] = [
   
   // OAuth tokens
   {
-    pattern: /(ya29\.|1//)[a-zA-Z0-9_-]+/gi,
+    pattern: /(ya29\.|1\/)[a-zA-Z0-9_-]+/gi,
+
     category: 'Security',
     severity: 'High',
     description: 'OAuth token detected',

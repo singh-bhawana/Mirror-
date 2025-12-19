@@ -30,9 +30,14 @@ export default function Signup() {
 
       // Redirect to login page after successful signup
       router.push('/login');
-    } catch (err) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong");
+      }
     }
+    
   };
 
   return (
