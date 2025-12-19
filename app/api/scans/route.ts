@@ -1,21 +1,15 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { scanStorage } from '@/lib/scanStorage';
 
 export async function GET() {
   try {
-    // TODO: Get user ID from session
-    const scans = await prisma.scan.findMany({
-      include: {
-        findings: true,
-      },
-      orderBy: {
-        uploadedAt: 'desc',
-      },
-    });
+    const scans = scanStorage.getAllScans();
+    const statistics = scanStorage.getStatistics();
 
-    return NextResponse.json({ scans });
+    return NextResponse.json({ 
+      scans,
+      statistics
+    });
   } catch (error) {
     console.error('Error fetching scans:', error);
     return NextResponse.json(

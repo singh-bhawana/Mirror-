@@ -64,7 +64,7 @@ export default function ScanResults({ findings, summary, onClose }: ScanResultsP
         ],
         backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
         borderColor: ['#FF5555', '#3DBDB4', '#35A7C1'],
-        borderWidth: 1,
+        borderWidth: 2,
       },
     ],
   };
@@ -79,8 +79,8 @@ export default function ScanResults({ findings, summary, onClose }: ScanResultsP
           summary.severityBreakdown.medium,
           summary.severityBreakdown.low,
         ],
-        backgroundColor: ['#FF6B6B', '#FFD93D', '#6BCB77'],
-        borderColor: ['#FF5555', '#FFD42D', '#5BBB67'],
+        backgroundColor: '#FF6B6B',
+        borderColor: '#FF5555',
         borderWidth: 1,
       },
     ],
@@ -154,13 +154,17 @@ export default function ScanResults({ findings, summary, onClose }: ScanResultsP
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'phishing':
-        return '🎣';
+        return <span className="text-xl">🎣</span>;
       case 'privacy':
-        return '🔒';
+        return <span className="text-xl">🔒</span>;
       case 'security':
-        return '🛡️';
+        return (
+          <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        );
       default:
-        return '⚠️';
+        return <span className="text-xl">⚠️</span>;
     }
   };
 
@@ -186,23 +190,23 @@ export default function ScanResults({ findings, summary, onClose }: ScanResultsP
 
         {/* Mirror Score */}
         <div className="mb-8 bg-white/5 rounded-lg p-6">
-          <div className="flex items-center gap-4">
-            <div className={`text-6xl font-bold ${
-              summary.mirrorScore >= 80 ? 'text-green-400' :
-              summary.mirrorScore >= 60 ? 'text-yellow-400' :
-              'text-red-400'
+          <div className="flex items-center gap-6">
+            <div className={`text-7xl font-bold ${
+              summary.mirrorScore >= 8 ? 'text-green-400' :
+              summary.mirrorScore >= 5 ? 'text-yellow-400' :
+              'text-red-500'
             }`}>
               {summary.mirrorScore}
             </div>
             <div>
-              <div className="text-lg font-semibold mb-1">Mirror Score</div>
-              <div className={`text-sm font-medium px-3 py-1 rounded-full ${
-                summary.mirrorScore >= 80 ? 'bg-green-500/20 text-green-400' :
-                summary.mirrorScore >= 60 ? 'bg-yellow-500/20 text-yellow-400' :
-                'bg-red-500/20 text-red-400'
+              <div className="text-xl font-semibold mb-2 text-white">Mirror Score</div>
+              <div className={`text-sm font-semibold px-4 py-2 rounded-lg inline-block ${
+                summary.mirrorScore >= 8 ? 'bg-green-500/20 text-green-400 border border-green-500/40' :
+                summary.mirrorScore >= 5 ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40' :
+                'bg-red-500/20 text-red-400 border border-red-500/40'
               }`}>
-                {summary.mirrorScore >= 80 ? 'Low Risk' :
-                 summary.mirrorScore >= 60 ? 'Medium Risk' :
+                {summary.mirrorScore >= 8 ? 'Low Risk' :
+                 summary.mirrorScore >= 5 ? 'Medium Risk' :
                  'High Risk'}
               </div>
             </div>
@@ -243,7 +247,7 @@ export default function ScanResults({ findings, summary, onClose }: ScanResultsP
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl" role="img" aria-label={finding.category}>
+                    <span className="text-purple-400">
                       {getCategoryIcon(finding.category)}
                     </span>
                     <span className="font-semibold">{finding.category}</span>

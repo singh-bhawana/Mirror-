@@ -3,38 +3,79 @@
 @tailwind utilities;
 
 :root {
-  --primary: #9747FF;
-  --primary-dark: #7535CC;
-  --background: #000000;
-  --text: #FFFFFF;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 13, 6, 32;
+  --background-end-rgb: 39, 15, 77;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--text);
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
   min-height: 100vh;
 }
 
 .gradient-bg {
-  background: radial-gradient(circle at top left, var(--primary) 0%, transparent 50%),
-             radial-gradient(circle at top right, var(--primary) 0%, transparent 50%);
-  opacity: 0.2;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-}
-
-.btn-primary {
-  @apply bg-[#9747FF] hover:bg-[#7535CC] text-white font-semibold py-2 px-6 rounded-lg transition-all;
-}
-
-.btn-secondary {
-  @apply border border-[#9747FF] text-[#9747FF] hover:bg-[#9747FF] hover:text-white font-semibold py-2 px-6 rounded-lg transition-all;
+  background: radial-gradient(
+    circle at top center,
+    rgb(var(--background-end-rgb)),
+    rgb(var(--background-start-rgb))
+  );
 }
 
 .card {
-  @apply bg-black/50 backdrop-blur-sm border border-[#9747FF]/20 rounded-xl p-6;
+  @apply bg-black/30 backdrop-blur-sm border border-white/10 rounded-lg p-4 shadow-xl;
+}
+
+.btn-primary {
+  @apply bg-purple-600 text-white rounded-lg py-2 px-4 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply bg-white/10 text-white rounded-lg py-2 px-4 hover:bg-white/20 transition-colors;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(151, 71, 255, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(151, 71, 255, 0.7);
+}
+
+/* Typing animation */
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+/* Utility classes */
+.bg-gradient {
+  background: linear-gradient(to bottom, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb)));
+}
+
+.text-gradient {
+  background: linear-gradient(to right, #9747FF, #7c3aff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 } 

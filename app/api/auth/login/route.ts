@@ -1,43 +1,77 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
+import { sign } from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// For demo purposes, we'll use a simple user object
+const DEMO_USER = {
+  id: '1',
+  email: 'demo@example.com',
+  password: 'demo123',
+  name: 'Demo User'
+};
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
+    const email = body.email?.trim().toLowerCase();
+    const password = body.password?.trim();
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
+    // Validate input
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+        { error: 'Email and password are required' },
+        { status: 400 }
       );
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    // For demo purposes, we'll use a simple email/password check
+    // Compare email case-insensitively and password exactly
+    const emailMatch = email.toLowerCase() === DEMO_USER.email.toLowerCase();
+    const passwordMatch = password === DEMO_USER.password;
 
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+    if (emailMatch && passwordMatch) {
+      // Create token with structure matching verifyToken expectations
+      const token = sign(
+        { 
+          id: DEMO_USER.id, 
+          email: DEMO_USER.email,
+          name: DEMO_USER.name
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
       );
+
+      // Set cookie with proper configuration
+      const cookieStore = cookies();
+      cookieStore.set('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 86400, // 24 hours
+        path: '/',
+        domain: undefined // Let browser set domain
+      });
+
+      return NextResponse.json({ 
+        success: true,
+        user: {
+          id: DEMO_USER.id,
+          email: DEMO_USER.email,
+          name: DEMO_USER.name
+        }
+      });
     }
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    return NextResponse.json({ user: userWithoutPassword });
+    return NextResponse.json(
+      { error: 'Invalid email or password' },
+      { status: 401 }
+    );
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Authentication failed. Please try again.' },
       { status: 500 }
     );
   }
