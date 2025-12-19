@@ -1,15 +1,12 @@
 // Document Analysis Engine
 // Analyzes PDF, DOC, DOCX, and TXT files for security, privacy, and compliance issues
 
-import { allThreats, ThreatPattern } from './threatDatabase';
-
 interface Finding {
   id: number;
   category: string;
   severity: 'High' | 'Medium' | 'Low';
   description: string;
   location: string;
-  weight?: number;
 }
 
 interface AnalysisResult {
@@ -146,88 +143,34 @@ async function extractTextFromFile(file: File): Promise<string> {
   return '';
 }
 
-// Advanced pattern-based threat detection
-function detectThreatsFromDatabase(text: string): Finding[] {
-  const findings: Finding[] = [];
-  let id = 1;
-  const foundPatterns = new Set<string>(); // Prevent duplicate findings
-  
-  allThreats.forEach((threat: ThreatPattern) => {
-    let matches: RegExpMatchArray[] = [];
-    
-    if (typeof threat.pattern === 'string') {
-      const regex = new RegExp(threat.pattern, 'gi');
-      matches = Array.from(text.matchAll(regex));
-    } else {
-      matches = Array.from(text.matchAll(threat.pattern));
-    }
-    
-    if (matches.length > 0) {
-      // Limit findings per pattern to avoid spam
-      const maxFindings = threat.severity === 'High' ? 10 : threat.severity === 'Medium' ? 5 : 3;
-      const uniqueMatches = matches.slice(0, maxFindings);
-      
-      uniqueMatches.forEach((match, index) => {
-        const matchKey = `${threat.category}-${threat.description}-${index}`;
-        if (!foundPatterns.has(matchKey)) {
-          foundPatterns.add(matchKey);
-          
-          // Extract location context
-          const matchText = match[0] || match[1] || '';
-          const location = matchText.length > 100 
-            ? matchText.substring(0, 100) + '...' 
-            : matchText || 'Found in document content';
-          
-          findings.push({
-            id: id++,
-            category: threat.category,
-            severity: threat.severity,
-            description: threat.description,
-            location: location,
-            weight: threat.weight
-          });
-        }
-      });
-    }
-  });
-  
-  return findings;
-}
-
-// Detect insecure HTTP links (enhanced)
+// Detect insecure HTTP links
 function detectInsecureLinks(text: string): Finding[] {
   const findings: Finding[] = [];
   const httpLinkRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
-  const matches = Array.from(text.matchAll(httpLinkRegex));
+  const matches = text.matchAll(httpLinkRegex);
   let id = 1;
-  const foundUrls = new Set<string>();
   
   for (const match of matches) {
     const url = match[0];
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.startsWith('http://') && !lowerUrl.includes('localhost') && !lowerUrl.includes('127.0.0.1')) {
+    if (url.toLowerCase().startsWith('http://') && !url.toLowerCase().includes('localhost')) {
       // Skip common metadata URLs that are typically safe
       const safeDomains = [
         'www.w3.org',
         'ns.adobe.com',
         'purl.org',
         'schemas.microsoft.com',
-        'xmlns.com',
-        'schemas.openxmlformats.org'
+        'xmlns.com'
       ];
       
-      const isSafeDomain = safeDomains.some(domain => lowerUrl.includes(domain));
+      const isSafeDomain = safeDomains.some(domain => url.toLowerCase().includes(domain));
       
-      if (!isSafeDomain && !foundUrls.has(lowerUrl)) {
-        foundUrls.add(lowerUrl);
+      if (!isSafeDomain) {
         findings.push({
           id: id++,
           category: 'Security',
           severity: 'High',
           description: 'Insecure HTTP link detected (should use HTTPS)',
-          location: url.length > 80 ? url.substring(0, 80) + '...' : url,
-          weight: 2.5
+          location: url.length > 80 ? url.substring(0, 80) + '...' : url
         });
       }
     }
@@ -411,227 +354,6 @@ function detectComplianceIssues(text: string): Finding[] {
   return findings;
 }
 
-// Generate content hash for uniqueness tracking
-function generateContentHash(text: string): string {
-  let hash = 0;
-  const str = text.substring(0, 1000); // Use first 1000 chars for hash
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16);
-}
-
-// Analyze content for unique characteristics
-function analyzeContentUniqueness(text: string, wordCount: number): Finding[] {
-  const findings: Finding[] = [];
-  let id = 2000;
-  const lowerText = text.toLowerCase();
-  
-  // Check for sensitive document types
-  const sensitiveDocumentTypes = [
-    { keywords: ['confidential', 'classified', 'restricted', 'internal use only'], severity: 'High' as const },
-    { keywords: ['proprietary', 'trade secret', 'nda', 'non-disclosure'], severity: 'High' as const },
-    { keywords: ['personal information', 'pii', 'sensitive data'], severity: 'High' as const },
-    { keywords: ['financial statement', 'tax return', 'w-2', '1099'], severity: 'High' as const },
-    { keywords: ['medical record', 'health information', 'hipaa'], severity: 'High' as const },
-    { keywords: ['social security', 'ssn', 'tax id'], severity: 'High' as const }
-  ];
-  
-  sensitiveDocumentTypes.forEach(docType => {
-    const found = docType.keywords.some(keyword => lowerText.includes(keyword));
-    if (found) {
-      findings.push({
-        id: id++,
-        category: 'Privacy',
-        severity: docType.severity,
-        description: `Sensitive document type detected: ${docType.keywords[0]}`,
-        location: 'Document may contain highly sensitive information',
-        weight: 2.5
-      });
-    }
-  });
-  
-  // Check for password lists or credential dumps
-  const credentialPatterns = [
-    /(username|user|login).*?(password|pwd|pass)/gi,
-    /(email|account).*?(password|pwd|pass)/gi,
-    /(credential|login).*?(list|dump|file)/gi
-  ];
-  
-  credentialPatterns.forEach(pattern => {
-    if (pattern.test(text)) {
-      findings.push({
-        id: id++,
-        category: 'Data Breach',
-        severity: 'High',
-        description: 'Potential credential dump or password list detected',
-        location: 'Document may contain exposed login credentials',
-        weight: 4.0
-      });
-      return;
-    }
-  });
-  
-  // Check for code snippets with hardcoded secrets
-  const codePatterns = [
-    /(const|let|var)\s+(api[_-]?key|secret|password|token)\s*=\s*['"][^'"]+['"]/gi,
-    /(process\.env|getenv|config)\s*[\[.](api[_-]?key|secret|password)/gi
-  ];
-  
-  codePatterns.forEach(pattern => {
-    if (pattern.test(text)) {
-      findings.push({
-        id: id++,
-        category: 'Security',
-        severity: 'High',
-        description: 'Code with hardcoded credentials detected',
-        location: 'Source code may contain exposed secrets',
-        weight: 3.5
-      });
-      return;
-    }
-  });
-  
-  // Check for SQL injection patterns or database queries
-  if (/(select|insert|update|delete|drop|create|alter)\s+.*?(from|into|table|database)/gi.test(text)) {
-    findings.push({
-      id: id++,
-      category: 'Security',
-      severity: 'Medium',
-      description: 'SQL queries detected - may expose database structure',
-      location: 'Document contains database queries',
-      weight: 1.5
-    });
-  }
-  
-  // Check for base64 encoded data (may contain sensitive info)
-  const base64Pattern = /[A-Za-z0-9+/]{50,}={0,2}/g;
-  const base64Matches = text.match(base64Pattern) || [];
-  if (base64Matches.length > 5) {
-    findings.push({
-      id: id++,
-      category: 'Security',
-      severity: 'Medium',
-      description: 'Multiple base64 encoded strings detected - may contain sensitive data',
-      location: 'Encoded data may need review',
-      weight: 1.5
-    });
-  }
-  
-  // Check for hex encoded data
-  const hexPattern = /\b[0-9a-fA-F]{32,}\b/g;
-  const hexMatches = text.match(hexPattern) || [];
-  if (hexMatches.length > 10) {
-    findings.push({
-      id: id++,
-      category: 'Security',
-      severity: 'Low',
-      description: 'Multiple hex-encoded strings detected',
-      location: 'May indicate obfuscated content',
-      weight: 0.8
-    });
-  }
-  
-  // Check document structure for metadata exposure
-  if (text.includes('Author:') || text.includes('Creator:') || text.includes('Producer:')) {
-    findings.push({
-      id: id++,
-      category: 'Privacy',
-      severity: 'Low',
-      description: 'Document metadata detected - may expose author information',
-      location: 'Document properties may contain personal information',
-      weight: 0.5
-    });
-  }
-  
-  return findings;
-}
-
-// File-specific metadata analysis
-function analyzeFileMetadata(file: File, wordCount: number, linkCount: number, emailCount: number, phoneCount: number): Finding[] {
-  const findings: Finding[] = [];
-  let id = 1000;
-  
-  // Large documents may contain more sensitive information
-  if (wordCount > 10000) {
-    findings.push({
-      id: id++,
-      category: 'Privacy',
-      severity: 'Low',
-      description: 'Large document detected - increased risk of containing sensitive information',
-      location: `Document contains ${wordCount.toLocaleString()} words`,
-      weight: 0.3
-    });
-  }
-  
-  // Multiple links increase attack surface
-  if (linkCount > 10) {
-    findings.push({
-      id: id++,
-      category: 'Security',
-      severity: 'Medium',
-      description: `High number of links detected (${linkCount}) - increased attack surface`,
-      location: 'Multiple external links increase security risk',
-      weight: 1.0
-    });
-  }
-  
-  // Multiple email addresses
-  if (emailCount > 5) {
-    findings.push({
-      id: id++,
-      category: 'Privacy',
-      severity: 'Medium',
-      description: `Multiple email addresses detected (${emailCount}) - privacy concern`,
-      location: 'Document contains multiple contact emails',
-      weight: 1.2
-    });
-  }
-  
-  // Multiple phone numbers
-  if (phoneCount > 3) {
-    findings.push({
-      id: id++,
-      category: 'Privacy',
-      severity: 'Medium',
-      description: `Multiple phone numbers detected (${phoneCount}) - privacy concern`,
-      location: 'Document contains multiple contact numbers',
-      weight: 1.2
-    });
-  }
-  
-  // File name analysis
-  const fileName = file.name.toLowerCase();
-  const suspiciousFileNamePatterns = [
-    /password/i,
-    /secret/i,
-    /confidential/i,
-    /private/i,
-    /backup/i,
-    /dump/i,
-    /temp/i,
-    /test/i
-  ];
-  
-  suspiciousFileNamePatterns.forEach(pattern => {
-    if (pattern.test(fileName)) {
-      findings.push({
-        id: id++,
-        category: 'Security',
-        severity: 'Low',
-        description: `Suspicious file name pattern detected: "${file.name}"`,
-        location: 'File name may indicate sensitive content',
-        weight: 0.5
-      });
-      return;
-    }
-  });
-  
-  return findings;
-}
-
 // Enhanced phishing detection
 function detectPhishingAttempts(text: string): Finding[] {
   const findings: Finding[] = [];
@@ -806,7 +528,7 @@ function detectDataBreachRisks(text: string): Finding[] {
   return findings;
 }
 
-// Calculate MirrorScore based on findings - WEIGHTED SCORING
+// Calculate MirrorScore based on findings - STRICT SCORING
 function calculateMirrorScore(findings: Finding[]): number {
   if (findings.length === 0) {
     return 9.5; // Near-perfect score for clean documents
@@ -814,90 +536,37 @@ function calculateMirrorScore(findings: Finding[]): number {
   
   let score = 10; // Start with perfect score
   
-  // Use weight-based scoring if available, otherwise use severity-based
-  let totalWeight = 0;
-  let hasWeights = false;
-  
-  findings.forEach(finding => {
-    if (finding.weight !== undefined) {
-      hasWeights = true;
-      totalWeight += finding.weight;
-    } else {
-      // Fallback to severity-based scoring
-      switch (finding.severity) {
-        case 'High':
-          totalWeight += 2.5;
-          break;
-        case 'Medium':
-          totalWeight += 1.2;
-          break;
-        case 'Low':
-          totalWeight += 0.4;
-          break;
-      }
-    }
-  });
-  
-  score -= totalWeight;
-  
-  // Count findings by severity for additional penalties
+  // Count findings by severity
   const highCount = findings.filter(f => f.severity === 'High').length;
   const mediumCount = findings.filter(f => f.severity === 'Medium').length;
   const lowCount = findings.filter(f => f.severity === 'Low').length;
   
-  // Additional penalties for multiple issues (compounding effect)
-  if (highCount >= 5) {
-    score -= 2.0; // Many high-severity issues
-  } else if (highCount >= 3) {
+  // Deduct points based on severity (more strict)
+  score -= highCount * 2.5; // High severity: -2.5 each
+  score -= mediumCount * 1.2; // Medium severity: -1.2 each
+  score -= lowCount * 0.4; // Low severity: -0.4 each
+  
+  // Additional penalties for multiple issues
+  if (highCount >= 3) {
     score -= 1.5; // Multiple high-severity issues
   }
-  
-  if (findings.length >= 20) {
-    score -= 2.0; // Too many findings overall
-  } else if (findings.length >= 10) {
-    score -= 1.0; // Many findings
+  if (findings.length >= 10) {
+    score -= 1.0; // Too many findings overall
   }
   
-  // Category-specific penalties (compounding)
+  // Category-specific penalties
   const phishingCount = findings.filter(f => f.category === 'Phishing').length;
   const securityCount = findings.filter(f => f.category === 'Security').length;
   const privacyCount = findings.filter(f => f.category === 'Privacy').length;
-  const dataBreachCount = findings.filter(f => f.category === 'Data Breach').length;
   
-  if (phishingCount >= 5) {
-    score -= 2.0; // Many phishing indicators
-  } else if (phishingCount >= 2) {
+  if (phishingCount >= 2) {
     score -= 1.0; // Multiple phishing indicators
   }
-  
-  if (securityCount >= 10) {
-    score -= 2.5; // Many security issues
-  } else if (securityCount >= 5) {
+  if (securityCount >= 5) {
     score -= 1.5; // Multiple security issues
   }
-  
-  if (privacyCount >= 5) {
-    score -= 2.0; // Many privacy concerns
-  } else if (privacyCount >= 3) {
+  if (privacyCount >= 3) {
     score -= 1.0; // Multiple privacy concerns
-  }
-  
-  if (dataBreachCount >= 3) {
-    score -= 2.5; // Multiple data breach indicators (critical)
-  } else if (dataBreachCount >= 1) {
-    score -= 1.5; // Data breach risk detected
-  }
-  
-  // Document-specific risk factors
-  const hasCredentials = findings.some(f => 
-    f.description.toLowerCase().includes('password') ||
-    f.description.toLowerCase().includes('api key') ||
-    f.description.toLowerCase().includes('token') ||
-    f.description.toLowerCase().includes('secret')
-  );
-  
-  if (hasCredentials) {
-    score -= 1.0; // Additional penalty for exposed credentials
   }
   
   // Ensure score is between 0 and 10
@@ -947,46 +616,37 @@ export async function analyzeDocument(file: File): Promise<AnalysisResult> {
       };
     }
     
-    // Perform comprehensive threat detection using database
-    console.log(`[Analyzer] Running comprehensive threat analysis...`);
-    console.log(`[Analyzer] Document: ${file.name}, Size: ${(file.size / 1024).toFixed(2)} KB`);
-    
-    // Use threat database for pattern matching (primary detection method)
-    const threatFindings = detectThreatsFromDatabase(textContent);
-    console.log(`[Analyzer] Found ${threatFindings.length} threats from database`);
-    
-    // Additional specific analyses for edge cases
+    // Perform various analyses
+    console.log(`[Analyzer] Running security analysis...`);
     const insecureLinks = detectInsecureLinks(textContent);
     console.log(`[Analyzer] Found ${insecureLinks.length} insecure links`);
     
-    // Combine all findings and deduplicate
-    const allFindingsMap = new Map<string, Finding>();
+    const personalInfo = detectPersonalInformation(textContent);
+    console.log(`[Analyzer] Found ${personalInfo.length} personal information items`);
     
-    // Add threat database findings first (most comprehensive)
-    [...threatFindings, ...insecureLinks].forEach(finding => {
-      const key = `${finding.category}-${finding.description}-${finding.location.substring(0, 50)}`;
-      if (!allFindingsMap.has(key)) {
-        allFindingsMap.set(key, finding);
-      }
-    });
+    const suspiciousPatterns = detectSuspiciousPatterns(textContent);
+    console.log(`[Analyzer] Found ${suspiciousPatterns.length} suspicious patterns`);
     
-    const allFindings = Array.from(allFindingsMap.values());
+    const phishingAttempts = detectPhishingAttempts(textContent);
+    console.log(`[Analyzer] Found ${phishingAttempts.length} phishing attempts`);
     
-    // Add content hash for uniqueness tracking
-    const contentHash = generateContentHash(textContent);
-    console.log(`[Analyzer] Content hash: ${contentHash.substring(0, 8)}...`);
+    const dataBreachRisks = detectDataBreachRisks(textContent);
+    console.log(`[Analyzer] Found ${dataBreachRisks.length} data breach risks`);
     
-    console.log(`[Analyzer] Total unique findings: ${allFindings.length}`);
-    console.log(`[Analyzer] Breakdown - High: ${allFindings.filter(f => f.severity === 'High').length}, ` +
-                `Medium: ${allFindings.filter(f => f.severity === 'Medium').length}, ` +
-                `Low: ${allFindings.filter(f => f.severity === 'Low').length}`);
+    const complianceIssues = detectComplianceIssues(textContent);
+    console.log(`[Analyzer] Found ${complianceIssues.length} compliance issues`);
     
-    // Log category breakdown
-    const categoryBreakdown = allFindings.reduce((acc, f) => {
-      acc[f.category] = (acc[f.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    console.log(`[Analyzer] Category breakdown:`, categoryBreakdown);
+    // Combine all findings
+    const allFindings = [
+      ...insecureLinks,
+      ...personalInfo,
+      ...suspiciousPatterns,
+      ...phishingAttempts,
+      ...dataBreachRisks,
+      ...complianceIssues
+    ];
+    
+    console.log(`[Analyzer] Total findings: ${allFindings.length}`);
     
     // Calculate metadata
     const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
@@ -994,43 +654,29 @@ export async function analyzeDocument(file: File): Promise<AnalysisResult> {
     const emailCount = (textContent.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g) || []).length;
     const phoneCount = (textContent.match(/\b(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g) || []).length;
     
-    // File-specific analysis based on metadata
-    const fileSpecificFindings = analyzeFileMetadata(file, wordCount, linkCount, emailCount, phoneCount);
-    
-    // Add file-specific findings
-    fileSpecificFindings.forEach(finding => {
-      const key = `${finding.category}-${finding.description}-${finding.location.substring(0, 50)}`;
-      if (!allFindingsMap.has(key)) {
-        allFindingsMap.set(key, finding);
+    // Add baseline risk assessment
+    // Documents with links, emails, or personal info have inherent risk
+    if (allFindings.length === 0) {
+      // Even "clean" documents have some baseline considerations
+      if (linkCount > 0 || emailCount > 0 || phoneCount > 0) {
+        // Document contains potentially sensitive elements but no issues detected
+        // This is actually good, but we'll keep score realistic
+        allFindings.push({
+          id: 999,
+          category: 'Security',
+          severity: 'Low',
+          description: 'Document contains links or contact information - ensure proper handling',
+          location: 'General document review recommended'
+        });
       }
-    });
-    
-    // Content-based uniqueness analysis
-    const contentBasedFindings = analyzeContentUniqueness(textContent, wordCount);
-    contentBasedFindings.forEach(finding => {
-      const key = `${finding.category}-${finding.description}-${finding.location.substring(0, 50)}`;
-      if (!allFindingsMap.has(key)) {
-        allFindingsMap.set(key, finding);
-      }
-    });
-    
-    const finalFindings = Array.from(allFindingsMap.values());
-    
-    // Sort findings by severity (High first, then Medium, then Low)
-    finalFindings.sort((a, b) => {
-      const severityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
-      return severityOrder[b.severity] - severityOrder[a.severity];
-    });
+    }
     
     // Calculate MirrorScore
-    const mirrorScore = calculateMirrorScore(finalFindings);
-    
-    console.log(`[Analyzer] Final score calculation: ${mirrorScore}/10`);
-    console.log(`[Analyzer] Final findings count: ${finalFindings.length}`);
+    const mirrorScore = calculateMirrorScore(allFindings);
     
     return {
       mirrorScore,
-      findings: finalFindings,
+      findings: allFindings,
       textContent: textContent.substring(0, 5000), // Limit stored text
       metadata: {
         wordCount,
